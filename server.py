@@ -56,6 +56,10 @@ def classify_face_shape(value):
 def hello_world():
     return "<p>Blank</p>"
 
+@app.route('/health_check/ping')
+def health_check():
+    return jsonify({'status': 'Healthy'})
+
 @app.route('/is_human', methods=['POST'])
 def process_is_human():
     content_type = request.headers.get('Content-Type')
