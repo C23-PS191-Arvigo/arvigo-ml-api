@@ -133,7 +133,6 @@ def dummy_detect_personality():
 
 @app.route("/detect_personality", methods=["POST"])
 def detect_personality():
-    personality_model = joblib.load("./models/big-five-personality.joblib")
     if request.content_type == "application/json":
         try:
             data = request.get_json()
