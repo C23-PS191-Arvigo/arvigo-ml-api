@@ -5,6 +5,7 @@ import random
 import tensorflow as tf
 import base64
 from keras.models import load_model
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -133,21 +134,39 @@ def detect_personality():
         try:
             data = request.get_json()
 
-            # Convert the input data to a numpy array
             input_data = np.array([list(data.values())], dtype=np.float64)
+            df = pd.DataFrame(input_data, columns=data.keys())
+            cols_to_modify = ['EXT2','EXT4','EXT6','EXT8','EXT10',
+                            'EST2','EST4',
+                            'AGR1','AGR3','AGR5','AGR7',
+                            'CSN2','CSN4','CSN6','CSN8',
+                            'OPN2','OPN4','OPN6','OPN9']
+            
+            df[cols_to_modify] = df[cols_to_modify].apply(lambda x: 6 - x)
 
-            # Perform clustering prediction
-            predictions = personality_model.predict(input_data)
+            df['EXT'] = df.filter(regex='EXT\d+').sum(axis=1)
+            df['EST'] = df.filter(regex='EST\d+').sum(axis=1)
+            df['AGR'] = df.filter(regex='AGR\d+').sum(axis=1)
+            df['CSN'] = df.filter(regex='CSN\d+').sum(axis=1)
+            df['OPN'] = df.filter(regex='OPN\d+').sum(axis=1)
+            df = df.iloc[:, 50:]
+            df = df.apply(lambda x: (x - 10) / 40)
 
-            # Convert the predictions to a list
-            personality_traits = predictions.tolist()
-
-            # Map the predicted personality traits to their respective names
-            personality_names = ['Extraversion', 'Emotional Stability', 'Agreeableness', 'Conscientiousness', 'Openness']
-            predicted_personality = [personality_names[i] for i in personality_traits]
+            sums = df.iloc[0]
+            percentages = [round((x/sums.sum())*100, 2) for x in sums]
+            
+            per_ext = percentages[0]
+            per_est = percentages[1]
+            per_agr = percentages[2]
+            per_csn = percentages[3]
+            per_opn = percentages[4]
 
             response = {
-                'predicted_personality': predicted_personality
+                'Percentage of Extraversion': per_ext,
+                'Percentage of Neurotic': per_est,
+                'Percentage of Agreeable': per_agr,
+                'Percentage of Conscientious': per_csn,
+                'Percentage of Openess': per_opn
             }
 
             return jsonify(response)
