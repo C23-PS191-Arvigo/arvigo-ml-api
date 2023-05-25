@@ -165,11 +165,11 @@ def detect_personality():
             per_opn = percentages[4]
 
             response = {
-                'Percentage of Extraversion': per_ext,
-                'Percentage of Neurotic': per_est,
-                'Percentage of Agreeable': per_agr,
-                'Percentage of Conscientious': per_csn,
-                'Percentage of Openess': per_opn
+                'percentage_of_extraversion': per_ext,
+                'percentage_of_neurotic': per_est,
+                'percentage_of_agreeable': per_agr,
+                'percentage_of_conscientious': per_csn,
+                'percentage_of_openess': per_opn
             }
 
             return jsonify(response)
