@@ -38,9 +38,6 @@ def threshold_human(value):
         return str(False)
 
 def preprocess_image(param):
-    # Get the base64 image data from the request
-    data = request.json['image']
-
     # Decode base64 string into image data
     image_data = base64.b64decode(param)
 
@@ -89,26 +86,53 @@ def preprocess_image(param):
         hull = cv2.convexHull(np.array(landmark_points))
         cv2.drawContours(black_image, [hull], -1, (0, 0, 255), 2)
 
-        # Reshape the input for the model prediction
-        test_input = np.array(landmark_points).reshape(1, -1)
+        # Find leftmost, rightmost, topmost, and bottommost landmarks
+        leftmost_landmark = min(landmark_points, key=lambda p: p[0])
+        rightmost_landmark = max(landmark_points, key=lambda p: p[0])
+        topmost_landmark = min(landmark_points, key=lambda p: p[1])
+        bottommost_landmark = max(landmark_points, key=lambda p: p[1])
 
-        # Predict the landmarks on the test image using the best model
-        predicted_landmarks = best_model.predict(test_input)
+        # Calculate the size of the square crop
+        square_size = max(rightmost_landmark[0] - leftmost_landmark[0], bottommost_landmark[1] - topmost_landmark[1])
 
-        # Draw the predicted landmarks on the black image
-        for landmark in predicted_landmarks.reshape(-1, 2):
-            x = int(landmark[0])
-            y = int(landmark[1])
-            cv2.circle(black_image, (x, y), 2, (0, 255, 0), -1)
-        
+        # Calculate the center coordinates of the square crop
+        center_x = int((leftmost_landmark[0] + rightmost_landmark[0]) / 2)
+        center_y = int((topmost_landmark[1] + bottommost_landmark[1]) / 2)
+
+        # Shift the center coordinates upwards by 25 pixels
+        center_y -= 25
+
+        # Calculate the coordinates for cropping the square image
+        left_crop = center_x - int(square_size / 2)
+        right_crop = center_x + int(square_size / 2)
+        top_crop = center_y - int(square_size / 2)
+        bottom_crop = center_y + int(square_size / 2)
+
+        # Adjust the crop coordinates to ensure they are within the image boundaries
+        left_crop = max(0, left_crop)
+        right_crop = min(image_width, right_crop)
+        top_crop = max(0, top_crop)
+        bottom_crop = min(image_height, bottom_crop)
+
+        # Calculate the expanded crop coordinates
+        expand_pixels = 30
+        left_crop = max(0, left_crop - expand_pixels)
+        right_crop = min(image_width, right_crop + expand_pixels)
+        top_crop = max(0, top_crop - expand_pixels)
+        bottom_crop = min(image_height, bottom_crop + expand_pixels)
+
+        # Perform cropping to get the square image
+        cropped_image = black_image[top_crop:bottom_crop, left_crop:right_crop]
+
+
         # Set alpha channel based on sigmoid function
-        for i in range(image_height):
-            alpha = 255 / (1 + np.exp(-10 * ((i / image_height) - 0.5)))
-            for j in range(image_width):
-                if cv2.pointPolygonTest(hull, (j, i), False) >= 0:
-                    black_image[i, j] = original[i, j]
+        for i in range(cropped_image.shape[0]):
+            alpha = 255 / (1 + np.exp(-10 * ((i / cropped_image.shape[0]) - 0.5)))
+            for j in range(cropped_image.shape[1]):
+                if cv2.pointPolygonTest(hull, (j + left_crop, i + top_crop), False) >= 0:
+                    cropped_image[i, j] = original[i + top_crop, j + left_crop]
                 else:
-                    black_image[i, j] = np.clip(original[i, j] - alpha, 0, 255)
+                    cropped_image[i, j] = np.clip(original[i + top_crop, j + left_crop] - alpha, 0, 255)
 
     # Encode the result image to base64
     _, img_encoded = cv2.imencode('.png', black_image)
@@ -163,7 +187,7 @@ def process_face_shape():
     content_type = request.headers.get('Content-Type')
     if content_type == 'application/json':
         param = request.json["image"]
-        processed_image = preprocess_image(param)        
+        processed_image = preprocess_image(param)   
         
         model = load_model("./models/face-shapes.h5")
         img = load_image_from_base64(processed_image)
