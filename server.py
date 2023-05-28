@@ -6,6 +6,8 @@ import tensorflow as tf
 import base64
 from keras.models import load_model
 import pandas as pd
+import cv2
+import mediapipe as mp
 
 app = Flask(__name__)
 
@@ -34,6 +36,86 @@ def threshold_human(value):
         return str(True)
     else:
         return str(False)
+
+def preprocess_image(param):
+    # Get the base64 image data from the request
+    data = request.json['image']
+
+    # Decode base64 string into image data
+    image_data = base64.b64decode(param)
+
+    # Convert image data to NumPy array
+    image_np = np.frombuffer(image_data, np.uint8)
+
+    # Read the image using OpenCV
+    original = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
+
+    # Resize the image to 300x300
+    original = cv2.resize(original, (300, 300))
+
+    # Convert image to RGB
+    image = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
+
+    # Load the best model from the checkpoint
+    best_model = load_model("./models/Arvigo_Landmark.h5")
+
+    mp_face_mesh = mp.solutions.face_mesh
+
+    # Initialize FaceMesh detector
+    with mp_face_mesh.FaceMesh(
+        static_image_mode=True,
+        max_num_faces=1,
+        min_detection_confidence=0.5) as face_mesh:
+
+        # Process image
+        results = face_mesh.process(image)
+
+        # Get face landmarks
+        if results.multi_face_landmarks:
+            landmarks = results.multi_face_landmarks[0]
+        else:
+            landmarks = None
+
+        # Create black image with the same size as the original image
+        image_height, image_width, _ = image.shape
+        black_image = np.zeros((image_height, image_width, 3), np.uint8)
+
+        # Draw landmarks on the black image and get outermost points
+        landmark_points = []
+        for landmark in landmarks.landmark:
+            x = int(landmark.x * image_width)
+            y = int(landmark.y * image_height)
+            landmark_points.append((x, y))
+        hull = cv2.convexHull(np.array(landmark_points))
+        cv2.drawContours(black_image, [hull], -1, (0, 0, 255), 2)
+
+        # Reshape the input for the model prediction
+        test_input = np.array(landmark_points).reshape(1, -1)
+
+        # Predict the landmarks on the test image using the best model
+        predicted_landmarks = best_model.predict(test_input)
+
+        # Draw the predicted landmarks on the black image
+        for landmark in predicted_landmarks.reshape(-1, 2):
+            x = int(landmark[0])
+            y = int(landmark[1])
+            cv2.circle(black_image, (x, y), 2, (0, 255, 0), -1)
+        
+        # Set alpha channel based on sigmoid function
+        for i in range(image_height):
+            alpha = 255 / (1 + np.exp(-10 * ((i / image_height) - 0.5)))
+            for j in range(image_width):
+                if cv2.pointPolygonTest(hull, (j, i), False) >= 0:
+                    black_image[i, j] = original[i, j]
+                else:
+                    black_image[i, j] = np.clip(original[i, j] - alpha, 0, 255)
+
+    # Encode the result image to base64
+    _, img_encoded = cv2.imencode('.png', black_image)
+    result_base64 = base64.b64encode(img_encoded).decode('utf-8')
+
+    # Return the base64-encoded image as the response
+    return result_base64
 
 def classify_face_shape(value):
     shapes = ['circle', 'heart', 'oblong', 'oval', 'square', 'triangle']
@@ -81,9 +163,10 @@ def process_face_shape():
     content_type = request.headers.get('Content-Type')
     if content_type == 'application/json':
         param = request.json["image"]
-
+        processed_image = preprocess_image(param)        
+        
         model = load_model("./models/face-shapes.h5")
-        img = load_image_from_base64(param)
+        img = load_image_from_base64(processed_image)
         pred = predict_image(model, img)
         result = classify_face_shape(pred)
 
