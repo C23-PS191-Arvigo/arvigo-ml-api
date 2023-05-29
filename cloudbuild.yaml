@@ -2,7 +2,7 @@ steps:
 - id: Build-docker
   name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'asia.gcr.io/$PROJECT_ID/production-ml/arvigo-backend-ml:$SHORT_SHA', '.']
-  timeout: 900s
+  timeout: 1800s
 
 - id: Push-docker
   name: 'gcr.io/cloud-builders/docker'
