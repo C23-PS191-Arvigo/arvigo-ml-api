@@ -6,6 +6,11 @@ import tensorflow as tf
 import base64
 from keras.models import load_model
 import pandas as pd
+import cv2
+import mediapipe as mp
+import requests
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 app = Flask(__name__)
 
@@ -34,6 +39,112 @@ def threshold_human(value):
         return str(True)
     else:
         return str(False)
+
+def preprocess_image(param):
+    # Decode base64 string into image data
+    image_data = base64.b64decode(param)
+
+    # Convert image data to NumPy array
+    image_np = np.frombuffer(image_data, np.uint8)
+
+    # Read the image using OpenCV
+    original = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
+
+    # Resize the image to 300x300
+    original = cv2.resize(original, (300, 300))
+
+    # Convert image to RGB
+    image = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
+
+    # Load the best model from the checkpoint
+    best_model = load_model("./models/Arvigo_Landmark.h5")
+
+    mp_face_mesh = mp.solutions.face_mesh
+
+    # Initialize FaceMesh detector
+    with mp_face_mesh.FaceMesh(
+        static_image_mode=True,
+        max_num_faces=1,
+        min_detection_confidence=0.5) as face_mesh:
+
+        # Process image
+        results = face_mesh.process(image)
+
+        # Get face landmarks
+        if results.multi_face_landmarks:
+            landmarks = results.multi_face_landmarks[0]
+        else:
+            landmarks = None
+
+        # Create black image with same size as original image
+        image_height, image_width, _ = image.shape
+        black_image = np.zeros((image_height, image_width, 3), np.uint8)
+
+        # Draw landmarks on black image and get outermost points
+        landmark_points = []
+        for landmark in landmarks.landmark:
+            x = int(landmark.x * image_width)
+            y = int(landmark.y * image_height)
+            landmark_points.append((x, y))
+        hull = cv2.convexHull(np.array(landmark_points))
+        cv2.drawContours(black_image, [hull], -1, (0, 0, 255), 2)
+
+        # Find leftmost, rightmost, topmost, and bottommost landmarks
+        leftmost_landmark = min(landmark_points, key=lambda p: p[0])
+        rightmost_landmark = max(landmark_points, key=lambda p: p[0])
+        topmost_landmark = min(landmark_points, key=lambda p: p[1])
+        bottommost_landmark = max(landmark_points, key=lambda p: p[1])
+
+        # Calculate the size of the square crop
+        square_size = max(rightmost_landmark[0] - leftmost_landmark[0], bottommost_landmark[1] - topmost_landmark[1])
+
+        # Calculate the center coordinates of the square crop
+        center_x = int((leftmost_landmark[0] + rightmost_landmark[0]) / 2)
+        center_y = int((topmost_landmark[1] + bottommost_landmark[1]) / 2)
+
+        # Calculate the shift and expansion based on image size
+        shift_percentage = 0.075  # Adjust the shift percentage as desired
+        expand_percentage = 0.075  # Adjust the expansion percentage as desired
+
+        shift_pixels = int(shift_percentage * image_height)
+        expand_pixels = int(expand_percentage * image_height)
+
+        # Shift the center coordinates upwards
+        center_y -= shift_pixels
+
+        # Calculate the coordinates for cropping the square image
+        left_crop = center_x - int(square_size / 2)
+        right_crop = center_x + int(square_size / 2)
+        top_crop = center_y - int(square_size / 2)
+        bottom_crop = center_y + int(square_size / 2)
+
+        # Adjust the crop coordinates to ensure they are within the image boundaries
+        left_crop = max(0, left_crop - expand_pixels)
+        right_crop = min(image_width, right_crop + expand_pixels)
+        top_crop = max(0, top_crop - expand_pixels)
+        bottom_crop = min(image_height, bottom_crop + expand_pixels)
+
+        # Perform cropping to get the square image
+        cropped_image = black_image[top_crop:bottom_crop, left_crop:right_crop]
+
+        # Set alpha channel based on sigmoid function
+        for i in range(cropped_image.shape[0]):
+            alpha = 255 / (1 + np.exp(-10 * ((i / cropped_image.shape[0]) - 0.5)))
+            for j in range(cropped_image.shape[1]):
+                if cv2.pointPolygonTest(hull, (j + left_crop, i + top_crop), False) >= 0:
+                    cropped_image[i, j] = original[i + top_crop, j + left_crop]
+                else:
+                    cropped_image[i, j] = np.clip(original[i + top_crop, j + left_crop] - alpha, 0, 255)
+
+        # Resize the square image to 300x300
+        cropped_image = cv2.resize(cropped_image, (300, 300))
+
+    # Encode the result image to base64
+    _, img_encoded = cv2.imencode('.png', cropped_image)
+    result_base64 = base64.b64encode(img_encoded).decode('utf-8')
+
+    # Return the base64-encoded image as the response
+    return result_base64
 
 def classify_face_shape(value):
     shapes = ['circle', 'heart', 'oblong', 'oval', 'square', 'triangle']
@@ -81,9 +192,10 @@ def process_face_shape():
     content_type = request.headers.get('Content-Type')
     if content_type == 'application/json':
         param = request.json["image"]
-
+        processed_image = preprocess_image(param)   
+        # return processed_image
         model = load_model("./models/face-shapes.h5")
-        img = load_image_from_base64(param)
+        img = load_image_from_base64(processed_image)
         pred = predict_image(model, img)
         result = classify_face_shape(pred)
 
@@ -180,6 +292,67 @@ def detect_personality():
     else:
         return jsonify({'error': 'Invalid content type. Expected application/json.'})
 
+@app.route('/product_search', methods=['GET'])
+def product_search():
+    url = 'https://api.arvigo.site/v1/product-recommendation'
+    headers = {'X-API-Key': '4a150010-bac7-46e7-8b8b-594f47b0015c'}
+    response = requests.get(url, headers=headers)
 
+    if response.status_code == 200:
+        data = response.json()
+    else:
+        return jsonify({'error': f'Request failed with status code {response.status_code}'}), response.status_code
+
+    # Mendefinisikan Banyaknya Rekomendasi Berdasarkan Search
+    top_recommendation_item = 10
+
+    # Contoh Query Pencarian
+    query = request.json["query"]
+
+    # Membuat DataFrame dari data
+    df = pd.DataFrame(data['data'])
+
+    # Inisialisasi TF-IDF Vectorizer
+    tfidf_vectorizer = TfidfVectorizer()
+
+    # Membuat salinan DataFrame ke variabel baru
+    df_process = df.copy()
+
+    # Menghapus kolom 'description' dan 'clicked'
+    df_process = df_process.drop(['id', 'clicked'], axis=1)
+
+    # Menggabungkan kata-kata pada setiap baris
+    df_process['combined'] = df.apply(lambda row: ' '.join([str(row[column]) for column in df.columns]), axis=1)
+    products = list(df_process['combined'])
+
+    # Proses fitur ekstraksi TF-IDF
+    tfidf_matrix = tfidf_vectorizer.fit_transform(products)
+
+    # Fungsi pencarian produk berdasarkan query
+    def search(query, tfidf_matrix, vectorizer, top_n=1):
+        # Preprocessing query
+        query_vector = vectorizer.transform([query])
+
+        # Menghitung similarity dengan Cosine Similarity
+        similarity_scores = cosine_similarity(query_vector, tfidf_matrix).flatten()
+
+        # Mengurutkan hasil berdasarkan similarity score
+        top_indices = np.argsort(similarity_scores)[::-1][:top_n]
+        top_scores = similarity_scores[top_indices]
+
+        # Menyiapkan hasil pencarian dalam bentuk DataFrame
+        search_results = pd.DataFrame(columns=['id', 'similarity_score'])
+        for i, index in enumerate(top_indices):
+            product = df.loc[index]
+            result = {'id': product['id'], 'similarity_score': top_scores[i]}
+            search_results = pd.concat([search_results, pd.DataFrame(result, index=[0])], ignore_index=True)
+        return search_results
+
+    results = search(query, tfidf_matrix, tfidf_vectorizer, top_n=top_recommendation_item)
+
+    # Menggabungkan DataFrame berdasarkan kolom "id"
+    recommended = pd.merge(results, df, on='id')
+
+    return recommended.head(top_recommendation_item).to_json()
 if __name__ == "__main__":
     app.run(debug=True)

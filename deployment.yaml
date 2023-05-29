@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: arvigo-backend-ml-service
+  labels:
+    app: arvigo-backend-ml
+spec:
+  selector:
+    app: arvigo-backend-ml
+  type: ClusterIP
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: arvigo-backend-ml-workload
+  labels:
+  app: arvigo-backend-ml
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: arvigo-backend-ml
+  template:
+    metadata:
+      labels:
+        app: arvigo-backend-ml
+    spec:
+      containers:
+      - name: arvigo-backend-ml-container
+        image: asia.gcr.io/$PROJECT_ID/production-ml/arvigo-backend-ml:$SHORT_SHA
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "500Mi"
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check/ping
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 150
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 30
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check/ping
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 150
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 30
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: arvigo-backend-ml-autoscaler
+spec:
+  maxReplicas: 25
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: arvigo-backend-ml-workload
+  targetCPUUtilizationPercentage: 100
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: arvigo-backend-ml-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: arvigo-ip-static-backend-ml-global
+    networking.gke.io/managed-certificates: arvigo-backend-ml-cert
+    kubernetes.io/ingress.allow-http: "false"
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - host: ml.arvigo.site
+    http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: arvigo-backend-ml-service
+            port: 
+              number: 80
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: arvigo-backend-ml-cert
+spec:
+  domains:
+    - ml.arvigo.site
+    - www.ml.arvigo.site
