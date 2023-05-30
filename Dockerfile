@@ -1,23 +1,21 @@
-# Use the official Python base image with Alpine Linux
-FROM python:3.8-alpine
+# Base image
+FROM python:3.9
 
-# Set the working directory in the container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements.txt file to the container
-COPY requirements.txt .
+# Copy the Flask app files to the container's working directory
+COPY . /app
 
 # Install the required packages
-RUN apk add --no-cache gcc musl-dev linux-headers
-
-# Install the Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the application code to the container
-COPY . .
+RUN pip install flask joblib numpy tensorflow opencv-python mediapipe requests scikit-learn pandas keras
 
 # Expose the port on which the Flask app will run
 EXPOSE 80
 
-# Run the Flask application
-CMD ["python", "server.py"]
+# Set the environment variables
+ENV FLASK_APP=server.py
+ENV FLASK_RUN_HOST=0.0.0.0
+
+# Command to run the Flask app
+CMD ["flask", "run"]
