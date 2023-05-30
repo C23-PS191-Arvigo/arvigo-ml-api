@@ -1,7 +1,13 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: arvigo-backend-ml-prod
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: arvigo-backend-ml-service
+  namespace: arvigo-backend-ml-prod
   labels:
     app: arvigo-backend-ml
 spec:
@@ -17,6 +23,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: arvigo-backend-ml-workload
+  namespace: arvigo-backend-ml-prod
   labels:
     app: arvigo-backend-ml
 spec:
@@ -27,6 +34,7 @@ spec:
   template:
     metadata:
       labels:
+        namespace: arvigo-backend-ml-prod
         app: arvigo-backend-ml
     spec:
       containers:
@@ -36,10 +44,10 @@ spec:
         ports:
         - containerPort: 80
           protocol: TCP
-        # resources:
-        #   requests:
-        #     cpu: "250m"
-        #     memory: "500Mi"
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "500Mi"
         livenessProbe:
           failureThreshold: 10
           httpGet:
@@ -64,6 +72,7 @@ spec:
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
+  namespace: arvigo-backend-ml-prod
   name: arvigo-backend-ml-autoscaler
 spec:
   maxReplicas: 25
@@ -77,6 +86,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  namespace: arvigo-backend-ml-prod
   name: arvigo-backend-ml-ingress
   annotations:
     kubernetes.io/ingress.global-static-ip-name: arvigo-ip-static-backend-ml-global
@@ -99,6 +109,7 @@ spec:
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
+  namespace: arvigo-backend-ml-prod
   name: arvigo-backend-ml-cert
 spec:
   domains:
