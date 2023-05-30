@@ -1,21 +1,24 @@
-# Base image
-FROM python:3.9
+FROM nginx:alpine
 
-# Set the working directory inside the container
-WORKDIR /app
+RUN apk update && apk upgrade
 
-# Copy the Flask app files to the container's working directory
-COPY . /app
+RUN apk add --no-cache python3 \
+    py3-gunicorn
 
-# Install the required packages
-RUN pip install flask joblib numpy tensorflow opencv-python mediapipe requests scikit-learn pandas keras
+COPY src/docker .
+RUN chmod +x *.sh && \
+    mv nginx.conf /etc/nginx/nginx.conf
 
-# Expose the port on which the Flask app will run
-EXPOSE 80
+WORKDIR /opt/ctf/app
+COPY src/server .
+RUN apk --no-cache add python3-dev py3-pip && \
+    pip3 install --no-cache-dir -r requirements.txt && \
+    apk del python3-dev py3-pip
 
-# Set the environment variables
-ENV FLASK_APP=server.py
-ENV FLASK_RUN_HOST=0.0.0.0
+ENV PRODUCTION=true
+ENV GUNICORN_WSGI_MODULE=main:app
+ENV GUNICORN_NAME=ctf GUNICORN_SOCKFILE=/run/gunicorn.sock
+ENV GUNICORN_USER=nobody GUNICORN_GROUP=nobody
+RUN chmod 744 /tmp
 
-# Command to run the Flask app
-CMD ["flask", "run"]
+CMD ["/entrypoint.sh"]
