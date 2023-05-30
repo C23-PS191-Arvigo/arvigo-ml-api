@@ -185,9 +185,13 @@ def process_is_human():
         pred = predict_image(model, img)
         result = threshold_human(pred)
 
-        return result
+        if result == "True":
+            return jsonify({'result': True})
+        elif result == "False":
+            return jsonify({'result': False})
+
     else:
-        return 'Content-Type not supported!'
+        return jsonify({'message': 'Content-Type not supported!'})
 
 @app.route('/face_shape', methods=['POST'])
 def process_face_shape():
