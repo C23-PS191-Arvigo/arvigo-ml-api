@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import joblib
 import numpy as np
 import random
@@ -168,7 +168,7 @@ def classify_face_shape(value):
 
 @app.route("/")
 def hello_world():
-    return "<p>Blank</p>"
+    return Response("{'status': 'Healthy'}", status=200, mimetype='application/json')
 
 @app.route('/health_check/ping')
 def health_check():
