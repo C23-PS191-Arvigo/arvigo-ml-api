@@ -36,30 +36,30 @@ spec:
         ports:
         - containerPort: 80
           protocol: TCP
-        # resources:
-        #   requests:
-        #     cpu: "2000m"
-        #     memory: "4000Mi"
-        # livenessProbe:
-        #   failureThreshold: 10
-        #   httpGet:
-        #     path: /health_check/ping
-        #     port: 80
-        #     scheme: HTTP
-        #   initialDelaySeconds: 150
-        #   periodSeconds: 30
-        #   successThreshold: 1
-        #   timeoutSeconds: 30
-        # readinessProbe:
-        #   failureThreshold: 10
-        #   httpGet:
-        #     path: /health_check/ping
-        #     port: 80
-        #     scheme: HTTP
-        #   initialDelaySeconds: 150
-        #   periodSeconds: 30
-        #   successThreshold: 1
-        #   timeoutSeconds: 30
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "500Mi"
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check/ping
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 150
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 30
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check/ping
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 150
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 30
 ---
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
