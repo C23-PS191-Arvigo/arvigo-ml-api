@@ -11,6 +11,8 @@ import mediapipe as mp
 import requests
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.util import ngrams
+from nltk.metrics.distance import edit_distance
 
 app = Flask(__name__)
 
@@ -298,61 +300,56 @@ def product_search():
     headers = {'X-API-Key': '4a150010-bac7-46e7-8b8b-594f47b0015c'}
     response = requests.get(url, headers=headers)
 
-    if response.status_code == 200:
-        data = response.json()
-    else:
-        return jsonify({'error': f'Request failed with status code {response.status_code}'}), response.status_code
+    def search_and_get_results(query, tfidf_matrix, vectorizer, top_n):
+        results = []
+        for product in combined:
+            # Menghitung similarity menggunakan n-gram
+            query_ngrams = set(ngrams(query.lower(), 3))
+            product_ngrams = set(ngrams(product.lower(), 3))
+            ngram_similarity = len(query_ngrams.intersection(product_ngrams)) / len(query_ngrams.union(product_ngrams))
 
-    # Mendefinisikan Banyaknya Rekomendasi Berdasarkan Search
-    top_recommendation_item = 10
+            # Menghitung similarity menggunakan Levenshtein distance
+            levenshtein_distance = edit_distance(query.lower(), product.lower())
+            levenshtein_similarity = 1 - (levenshtein_distance / max(len(query), len(product)))
 
-    # Contoh Query Pencarian
-    query = request.json["query"]
-
-    # Membuat DataFrame dari data
-    df = pd.DataFrame(data['data'])
-
-    # Inisialisasi TF-IDF Vectorizer
-    tfidf_vectorizer = TfidfVectorizer()
-
-    # Membuat salinan DataFrame ke variabel baru
-    df_process = df.copy()
-
-    # Menghapus kolom 'description' dan 'clicked'
-    df_process = df_process.drop(['id', 'clicked'], axis=1)
-
-    # Menggabungkan kata-kata pada setiap baris
-    df_process['combined'] = df.apply(lambda row: ' '.join([str(row[column]) for column in df.columns]), axis=1)
-    products = list(df_process['combined'])
-
-    # Proses fitur ekstraksi TF-IDF
-    tfidf_matrix = tfidf_vectorizer.fit_transform(products)
-
-    # Fungsi pencarian produk berdasarkan query
-    def search(query, tfidf_matrix, vectorizer, top_n=1):
-        # Preprocessing query
-        query_vector = vectorizer.transform([query])
-
-        # Menghitung similarity dengan Cosine Similarity
-        similarity_scores = cosine_similarity(query_vector, tfidf_matrix).flatten()
+            # Menggabungkan kedua similarity score
+            similarity_score = (ngram_similarity + levenshtein_similarity) / 2
+            results.append((product, similarity_score))
 
         # Mengurutkan hasil berdasarkan similarity score
-        top_indices = np.argsort(similarity_scores)[::-1][:top_n]
-        top_scores = similarity_scores[top_indices]
+        results = sorted(results, key=lambda x: x[1], reverse=True)[:top_n]
 
-        # Menyiapkan hasil pencarian dalam bentuk DataFrame
-        search_results = pd.DataFrame(columns=['id', 'similarity_score'])
-        for i, index in enumerate(top_indices):
-            product = df.loc[index]
-            result = {'id': product['id'], 'similarity_score': top_scores[i]}
-            search_results = pd.concat([search_results, pd.DataFrame(result, index=[0])], ignore_index=True)
+        # Membuat DataFrame hasil pencarian
+        search_results = pd.DataFrame(results, columns=['combined', 'similarity'])
         return search_results
 
-    results = search(query, tfidf_matrix, tfidf_vectorizer, top_n=top_recommendation_item)
+    if response.status_code == 200:
+        data = response.json()
+        # Mendefinisikan query
+        query = request.args.get("query")
 
-    # Menggabungkan DataFrame berdasarkan kolom "id"
-    recommended = pd.merge(results, df, on='id')
+        # Mendefinisikan Banyaknya Rekomendasi Berdasarkan Search
+        top_recommendation_item = 10
 
-    return recommended.head(top_recommendation_item).to_json()
+        # Membuat DataFrame dari data
+        df = pd.DataFrame(data['data'])
+        df.head()
+        # Menggabungkan kata-kata pada setiap baris kecuali id dan clicked
+        df['combined'] = df.apply(lambda row: ' '.join([str(row[column]) for column in ['name', 'description', 'category', 'brand', 'tags', 'merchants']]), axis=1)
+        df_copy = df.copy()
+        combined = list(df['combined'])
+        # Inisialisasi TF-IDF Vectorizer
+        tfidf_vectorizer = TfidfVectorizer()
+
+        # Proses fitur ekstraksi TF-IDF
+        tfidf_matrix = tfidf_vectorizer.fit_transform(combined)
+        # Menampilkan produk berdasarkan query
+        merged_df = pd.merge(df_copy, search_and_get_results(query, tfidf_matrix, tfidf_vectorizer, top_n=top_recommendation_item), on='combined', how='inner')
+        merged_df = merged_df.sort_values(by=['similarity'], ascending=False)
+        merged_df_head = merged_df.head(top_recommendation_item)
+        return jsonify(merged_df_head.to_dict('records'))
+    else:
+        return jsonify({'message': f'Request failed with status code {response.status_code}'})
+
 if __name__ == "__main__":
     app.run(debug=True)

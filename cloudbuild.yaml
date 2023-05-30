@@ -7,7 +7,7 @@ steps:
 - id: Push-docker
   name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'asia.gcr.io/$PROJECT_ID/production-ml/arvigo-backend-ml:$SHORT_SHA']
-  timeout: 900s
+  timeout: 1800s
 
 - id: envSubst-for-deployment.yml
   name: 'gcr.io/$PROJECT_ID/envsubst'
@@ -15,6 +15,7 @@ steps:
     - 'SHORT_SHA=$SHORT_SHA'
     - 'PROJECT_ID=$PROJECT_ID'
   args: ['deployment.yaml']
+  timeout: 1800s
 
 - id: Deploy-to-GKE
   name: "gcr.io/cloud-builders/gke-deploy" 
@@ -23,10 +24,10 @@ steps:
   - --filename=deployment.yaml
   - --cluster=arvigo-cluster
   - --location=asia-southeast2
-  timeout: 900s
+  timeout: 3600s
 
 # Global Timeout
-timeout: '3600s'
+timeout: '9000s'
 
 # - id: make-env-file
 #   name: 'ubuntu'
