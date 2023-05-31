@@ -168,11 +168,11 @@ def classify_face_shape(value):
 
 @app.route("/")
 def hello_world():
-    return Response("{'status': 'Healthy'}", status=200, mimetype='application/json')
+    return "<p>Welcome to Machine Learning Service of Arvigo</p>"
 
 @app.route('/health_check/ping')
 def health_check():
-    return jsonify({'status': 'Healthy'})
+    return Response("{'status': 'Healthy'}", status=200, mimetype='application/json')
 
 @app.route('/is_human', methods=['POST'])
 def process_is_human():
@@ -185,13 +185,9 @@ def process_is_human():
         pred = predict_image(model, img)
         result = threshold_human(pred)
 
-        if result == "True":
-            return jsonify({'result': True})
-        elif result == "False":
-            return jsonify({'result': False})
-
+        return result
     else:
-        return jsonify({'message': 'Content-Type not supported!'})
+        return 'Content-Type not supported!'
 
 @app.route('/face_shape', methods=['POST'])
 def process_face_shape():
@@ -330,7 +326,7 @@ def product_search():
     if response.status_code == 200:
         data = response.json()
         # Mendefinisikan query
-        query = request.args.get("query")
+        query = request.json.get("query")
 
         # Mendefinisikan Banyaknya Rekomendasi Berdasarkan Search
         top_recommendation_item = 10
