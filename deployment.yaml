@@ -40,26 +40,26 @@ spec:
           requests:
             cpu: "500m"
             memory: "1000Mi"
-        # livenessProbe:
-        #   failureThreshold: 10
-        #   httpGet:
-        #     path: /health_check/ping
-        #     port: 80
-        #     scheme: HTTP
-        #   initialDelaySeconds: 150
-        #   periodSeconds: 150
-        #   successThreshold: 1
-        #   timeoutSeconds: 150
-        # readinessProbe:
-        #   failureThreshold: 10
-        #   httpGet:
-        #     path: /health_check/ping
-        #     port: 80
-        #     scheme: HTTP
-        #   initialDelaySeconds: 150
-        #   periodSeconds: 150
-        #   successThreshold: 1
-        #   timeoutSeconds: 150
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check/ping
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 150
+          periodSeconds: 150
+          successThreshold: 1
+          timeoutSeconds: 150
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check/ping
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 150
+          periodSeconds: 150
+          successThreshold: 1
+          timeoutSeconds: 150
 ---
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
