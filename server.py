@@ -58,9 +58,6 @@ def preprocess_image(param):
     # Convert image to RGB
     image = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
 
-    # Load the best model from the checkpoint
-    best_model = load_model("./models/Arvigo_Landmark.h5")
-
     mp_face_mesh = mp.solutions.face_mesh
 
     # Initialize FaceMesh detector
