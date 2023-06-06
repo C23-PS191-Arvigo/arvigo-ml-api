@@ -1,23 +1,26 @@
-# Use the official Python base image with Alpine Linux
-FROM python:3.9-alpine
+# Base image
+FROM python:3.9
 
-# Set the working directory in the container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements.txt file to the container
-COPY requirements.txt .
+# Set environment variable for protobuf
+ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
+# Copy the Flask app files to the container's working directory
+COPY . /app
+
+RUN apt-get update && apt-get install -y libgl1-mesa-glx
 
 # Install the required packages
-RUN apk add --no-cache gcc musl-dev linux-headers
-
-# Install the Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the application code to the container
-COPY . .
+RUN pip install protobuf flask joblib numpy tensorflow opencv-python mediapipe requests scikit-learn pandas keras nltk
 
 # Expose the port on which the Flask app will run
 EXPOSE 80
 
-# Run the Flask application
-CMD ["python", "server.py"]
+# Set environment variables
+ENV FLASK_APP=server.py
+ENV FLASK_RUN_HOST=0.0.0.0
+
+# Command to run the Flask app
+CMD ["flask", "run"]
