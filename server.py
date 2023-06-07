@@ -14,6 +14,15 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.util import ngrams
 from nltk.metrics.distance import edit_distance
 from scipy.sparse import hstack
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+from fuzzywuzzy import fuzz
+
+nltk.download('punkt')
+nltk.download('stopwords')
 
 app = Flask(__name__)
 API_KEY = '05d27624-e862-4127-afc8-d382a137ec52'
@@ -321,52 +330,263 @@ def product_search():
     headers = {'X-API-Key': '4a150010-bac7-46e7-8b8b-594f47b0015c'}
     response = requests.get(url, headers=headers)
 
-    def search_and_get_results(query, tfidf_matrix, vectorizer, top_n):
-        results = []
-        for product in combined:
-            # Menghitung similarity menggunakan n-gram
-            query_ngrams = set(ngrams(query.lower(), 3))
-            product_ngrams = set(ngrams(product.lower(), 3))
-            ngram_similarity = len(query_ngrams.intersection(product_ngrams)) / len(query_ngrams.union(product_ngrams))
-
-            # Menghitung similarity menggunakan Levenshtein distance
-            levenshtein_distance = edit_distance(query.lower(), product.lower())
-            levenshtein_similarity = 1 - (levenshtein_distance / max(len(query), len(product)))
-
-            # Menggabungkan kedua similarity score
-            similarity_score = (ngram_similarity + levenshtein_similarity) / 2
-            results.append((product, similarity_score))
-
-        # Mengurutkan hasil berdasarkan similarity score
-        results = sorted(results, key=lambda x: x[1], reverse=True)[:top_n]
-
-        # Membuat DataFrame hasil pencarian
-        search_results = pd.DataFrame(results, columns=['combined', 'similarity'])
-        return search_results
-
     if response.status_code == 200:
-        api_key = request.headers.get('X-API-Key')
-        if api_key == API_KEY:
-            data = response.json()
-            query = request.args.get("query")
-            if query is None or query == "":
-                return jsonify({'message': 'Query parameter is missing or empty.'}), 400
+        data = response.json()
+        # Mendefinisikan query
+        query = request.args.get("query")
 
-            top_recommendation_item = 10
-            df = pd.DataFrame(data['data'])
-            df['combined'] = df.apply(lambda row: ' '.join(str(row[column]) for column in ['name', 'description', 'category', 'brand', 'tags', 'merchants']), axis=1)
-            combined = list(df['combined'])
-            tfidf_vectorizer = TfidfVectorizer()
-            tfidf_matrix = tfidf_vectorizer.fit_transform(combined)
-            merged_df = pd.merge(df, search_and_get_results(query, tfidf_matrix, tfidf_vectorizer, top_n=top_recommendation_item), on='combined', how='inner')
-            merged_df = merged_df.sort_values(by=['similarity'], ascending=False)
-            merged_df_head = merged_df.head(top_recommendation_item)
-            return jsonify(merged_df_head.to_dict('records'))
-        else:
-            return jsonify({'message': 'Invalid API key!'}), 401
+        if query is None:
+            return jsonify({'message': 'Query parameter is missing'})
+
+        df = pd.DataFrame(data['data'])
+        # Menghapus kolom 'clicked'
+        df = df.drop('clicked', axis=1)
+        # Mengubah semua nilai pada DataFrame menjadi lower case
+        df = df.apply(lambda x: x.astype(str).str.lower())
+        df['category'] = df['category'].replace({'glasses': 'glasses kacamata'}, regex=True)
+        # Mengganti nilai dalam kolom 'tags'
+        df['tags'] = df['tags'].replace({'circle': 'circle bulat lingkaran',
+                                        'heart': 'heart hati',
+                                        'square': 'square kotak',
+                                        'triangle': 'triangle segitiga',
+                                        'extraversion': 'extraversion ekstrover enerjik terbuka sosial',
+                                        'neurotic': 'neurotic emosional labil cemas gugup',
+                                        'agreeable': 'agreeable ramah sopan bersahabat bergaul',
+                                        'conscientious': 'conscientious bertanggung jawab disiplin cermat teliti',
+                                        'openness': 'openness terbuka fleksibel kreatif inovatif'}, regex=True)
+        # Pra-pemrosesan teks
+        stop_words = set(stopwords.words('indonesian'))
+        stemmer = PorterStemmer()
+        def preprocess_text(text):
+            # Menghapus karakter khusus
+            text = re.sub(r'\W', ' ', text)
+            
+            # Tokenisasi
+            tokens = word_tokenize(text)
+            
+            # Menggabungkan kembali token menjadi kalimat
+            processed_text = ' '.join(tokens)
+            return processed_text
+        df['name'] = df['name'].apply(preprocess_text)
+        df['description'] = df['description'].apply(preprocess_text)
+
+        def preprocess_query(query):
+            # Mengubah huruf menjadi huruf kecil
+            query = query.lower()
+
+            # Menghapus tanda baca
+            query = re.sub(r'[^a-zA-Z0-9\s]', '', query)
+            return query
+
+        def check_fuzzy_ratio(query_list, korpus):
+            result = []
+            for word in query_list:
+                match = False
+                for k in korpus:
+                    if fuzz.ratio(word, k) >= 80:
+                        result.append(k)
+                        match = True
+                        break
+                if not match:
+                    result.append('')
+            return result
+
+        def separate_query(query, result_category, korpus):
+            query_list = query.split()
+            separated_queries = []
+            separated_query = ''
+            for i, word in enumerate(query_list):
+                if result_category[i-1] != '':
+                    if separated_query != '':
+                        separated_queries.append(separated_query.strip())
+                        separated_query = ''
+                if result_category[i] != '':
+                    separated_query += result_category[i]
+                else:
+                    corrected_word = None
+                    for k in korpus:
+                        if fuzz.ratio(word, k) >= 80:
+                            corrected_word = k
+                            break
+                    if corrected_word:
+                        separated_query += corrected_word
+                    else:
+                        separated_query += word
+                separated_query += ' '
+            if separated_query != '':
+                separated_queries.append(separated_query.strip())
+            return separated_queries
+
+        def fix_typo_with_fuzzy_ratio(query, korpus):
+            corrected_query = query
+            words = query.split()
+            for i, word in enumerate(words):
+                for keyword in korpus:
+                    ratio = fuzz.ratio(word, keyword)
+                    if ratio > 80:
+                        words[i] = keyword
+                        break
+            corrected_query = ' '.join(words)
+            return corrected_query
+
+        def identify_keywords(text_list, korpus_category):
+            keywords = []
+            for text in text_list:
+                keyword = ''
+                words = text.split()
+                for word in words:
+                    if word in korpus_category:
+                        keyword = word
+                        break
+                keywords.append(keyword)
+            return keywords
+
+        def neg_merge_lists(list1, list2):
+            merged_list = []
+            for i in range(len(list1)):
+                if list1[i] == '' or list2[i] == '':
+                    None
+                else:
+                    merged_list.append(list2[i])
+            return merged_list
+
+        def pos_merge_lists(list1, list2, list3):
+            pos_list1 = []
+            pos_list2 = []
+            for i in range(len(list1)):
+                if list1[i] != '' and list3[i] == '':
+                    pos_list1.append(list1[i])
+                if list2[i] != '' and list3[i] == '':
+                    pos_list2.append(list2[i])
+            return pos_list1, pos_list2
+
+        korpus_negatif = ['tidak', 'ga', 'gak', 'ngga', 'nggak', 'selain', 'buruk', 'bukan', 'kurang', 'berbeda', 'beda', 'no', 'except', 'not']
+        korpus_category = ['jas', 'coat',
+                        'kaos', 'shirt', 'tshirt',
+                        'blouse', 'blus',
+                        'glasses', 'kacamata',
+                        'celana', 'pants', 'trousers',
+                        'gelang', 'bracelet',
+                        'dompet', 'purse',
+                        'baju', 'dress',
+                        'blazer',
+                        'perhiasan', 'jewellery',
+                        'tas', 'bag',
+                        'rok', 'skirt',
+                        'kemeja',
+                        'sepatu', 'shoes',
+                        'kalung', 'necklace',
+                        'sweater',
+                        'parfum', 'parfume',
+                        'lipstik',
+                        'pashmina', 'makeup',
+                        'anting', 'earrings',
+                        'jam', 'clock', 'watch',
+                        'topi', 'hat',
+                        'sandal',
+                        'jaket', 'jacket',
+                        'kemeja']
+        korpus_tag = ["circle", "bulat", "lingkaran",
+                    "heart","hati",
+                    "oblong",
+                    "oval", 
+                    "square", "kotak", "segiempat",
+                    "triangle", "segitiga",
+                    "extraversion", "ekstrover", "enerjik", "terbuka", "sosial",
+                    "neurotic", "emosional", "labil", "cemas", "gugup",
+                    "agreeable", "ramah", "sopan", "bersahabat", "bergaul",
+                    "conscientious", "bertanggung jawab", "disiplin", "cermat", "teliti",
+                    "openness", "terbuka", "fleksibel", "kreatif", "inovatif"]
+
+        preprocess_queries = preprocess_query(query)
+        result_category = check_fuzzy_ratio(preprocess_queries.split(), korpus_category + korpus_tag)
+        separated_queries = separate_query(preprocess_queries, result_category, korpus_category + korpus_tag)
+        corrected_queries = [fix_typo_with_fuzzy_ratio(query, korpus_negatif) for query in separated_queries]
+        keywords_cat = identify_keywords(corrected_queries, korpus_category)
+        keywords_tag = identify_keywords(corrected_queries, korpus_tag)
+        keywords_neg = identify_keywords(corrected_queries, korpus_negatif)
+        neg_category_query = neg_merge_lists(keywords_neg, keywords_cat)
+        neg_tag_query = neg_merge_lists(keywords_neg, keywords_tag)
+        pos_category_query, pos_tag_query = pos_merge_lists(keywords_cat, keywords_tag, keywords_neg)
+
+        # Membuat fungsi untuk memeriksa apakah tag mengandung kata dalam neg_category_query
+        def has_negative_tags(tag, neg_query):
+            for query in neg_query:
+                if query in tag:
+                    return True
+            return False
+
+        # Menghapus baris pada DataFrame yang memiliki category yang mengandung kata dalam neg_category_query
+        df = df[~df['category'].apply(lambda x: has_negative_tags(x, neg_category_query))]
+
+        # Menghapus baris pada DataFrame yang memiliki tag yang mengandung kata dalam neg_tag_query
+        df = df[~df['tags'].apply(lambda x: has_negative_tags(x, neg_tag_query))]
+
+        if len(pos_category_query) != 0:
+            df = df[df['category'].apply(lambda x: any(tag in x for tag in pos_category_query))]
+
+        if len(pos_tag_query) != 0:
+            df = df[df['tags'].apply(lambda x: any(tag in x for tag in pos_tag_query))]
+
+        # Inisialisasi TF-IDF Vectorizer
+        tfidf_vectorizer = TfidfVectorizer()
+
+        def search_and_get_results(query, vectorizer, top_n):
+            results = []
+            for idx, product in df.iterrows():
+                # Menghitung similarity score untuk setiap kolom
+                similarity_scores = []
+
+                for column in ['name', 'description', 'brand', 'merchants']:
+                    query_ngrams = set(ngrams(query.lower(), 3))
+                    product_ngrams = set(ngrams(product[column].lower(), 3))
+                    ngram_similarity = len(query_ngrams.intersection(product_ngrams)) / len(query_ngrams.union(product_ngrams))
+
+                    levenshtein_distance = edit_distance(query.lower(), product[column].lower())
+                    levenshtein_similarity = 1 - (levenshtein_distance / max(len(query), len(product[column])))
+
+                    similarity_score = (ngram_similarity + levenshtein_similarity) / 2
+
+                    # Meningkatkan bobot similarity score pada kolom "category" dan "tags"
+                    if column == 'name':
+                        similarity_score *= 2
+                    elif column == 'description':
+                        similarity_score *= 1
+                    elif column == 'brand':
+                        similarity_score *= 3
+                    else:
+                        similarity_score *= 2
+
+                    similarity_scores.append(similarity_score)
+
+                # Menjumlahkan similarity scores dari setiap kolom
+                total_similarity_score = sum(similarity_scores) / len(similarity_scores)
+                results.append((product['id'], total_similarity_score))
+
+            # Mengurutkan hasil berdasarkan similarity score
+            results = sorted(results, key=lambda x: x[1], reverse=True)[:top_n]
+
+            # Membuat DataFrame hasil pencarian
+            search_results = pd.DataFrame(results, columns=['id', 'similarity'])
+            return search_results
+
+        # Menampilkan produk berdasarkan query
+        search_results = search_and_get_results(query, tfidf_vectorizer, top_n=df.shape[0])
+        merged_df = pd.merge(df, search_results, on='id', how='inner')
+
+        # Menampilkan data frame dengan nilai similarity lebih dari 0.1
+        merged_df = merged_df[merged_df['similarity'] > 0.1]
+
+        # Mengeprint tidak ada produk apabila merfed_df tidak mempunyai baris
+        if merged_df.shape[0] == 0:
+            print("Tidak ada produk yang sesuai dengan pencarian\n")
+
+        # Mengurutkan dataframe berdasarkan kolom similarity yang terbesar
+        merged_df = merged_df.sort_values(by=['similarity'], ascending=False)
+
+        return jsonify(merged_df.head(25).to_dict(orient='records'))
     else:
-        return jsonify({'message': f'Request failed with status code {response.status_code}'}), response.status_code
-
+        return jsonify({'message': f'Request failed with status code {response.status_code}'})
 @app.route('/product_recommendation', methods=['GET'])
 def product_recommendation():
     url = 'https://api.arvigo.site/v1/product-recommendation'
