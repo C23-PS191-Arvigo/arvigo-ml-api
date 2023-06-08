@@ -176,7 +176,7 @@ def classify_face_shape(value):
 
 @app.route("/")
 def hello_world():
-    return "<p>Welcome to Machine Learning Service of Arvigo</p>"
+    return Response("{'status': 'Healthy'}", status=200, mimetype='application/json')
 
 @app.route('/health_check/ping')
 def health_check():
