@@ -153,7 +153,7 @@ def preprocess_image(param):
     _, img_encoded = cv2.imencode('.png', cropped_image)
     result_base64 = base64.b64encode(img_encoded).decode('utf-8')
 
-    # Return the base64-encoded image as the response
+    # Return the base64-encoded image as response
     return result_base64
 
 def classify_face_shape(value):
