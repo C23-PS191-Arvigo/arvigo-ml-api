@@ -1,31 +1,32 @@
-from flask import Flask, request, jsonify, Response
-import joblib
-import numpy as np
-import random
-import tensorflow as tf
 import base64
-from keras.models import load_model
-import pandas as pd
 import cv2
 import mediapipe as mp
-import requests
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
-from nltk.util import ngrams
-from nltk.metrics.distance import edit_distance
-from scipy.sparse import hstack
-import re
 import nltk
+import numpy as np
+import os
+import pandas as pd
+import re
+import requests
+import tensorflow as tf
+from dotenv import load_dotenv
+from fuzzywuzzy import fuzz
+from keras.models import load_model
 from nltk.corpus import stopwords
+from nltk.metrics.distance import edit_distance
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
-from fuzzywuzzy import fuzz
+from nltk.util import ngrams
+from scipy.sparse import hstack
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from flask import Flask, request, jsonify, Response
 
+load_dotenv()
 nltk.download('punkt')
 nltk.download('stopwords')
 
 app = Flask(__name__)
-API_KEY = '05d27624-e862-4127-afc8-d382a137ec52'
+API_KEY = os.getenv("ML_API_KEY")
 
 def load_image_from_base64(base64_string, target_size=(100, 100)):
     img_bytes = base64.b64decode(base64_string)
@@ -228,46 +229,6 @@ def process_face_shape():
     else:
         return jsonify({'message': 'Invalid API key!'})
 
-@app.route("/dummy_detect_personality", methods=["POST"])
-def dummy_detect_personality():
-    personality_model = joblib.load("./models/big-five-personality.joblib")
-    if request.content_type == "application/json":
-        try:
-            data = {'EXT1': 0, 'EXT2': 0, 'EXT3': 0, 'EXT4': 0, 'EXT5': 0, 'EXT6': 0, 'EXT7': 0, 'EXT8': 0, 'EXT9': 0,
-                    'EXT10': 0, 'EST1': 0, 'EST2': 0, 'EST3': 0, 'EST4': 0, 'EST5': 0, 'EST6': 0, 'EST7': 0, 'EST8': 0,
-                    'EST9': 0, 'EST10': 0, 'AGR1': 0, 'AGR2': 0, 'AGR3': 0, 'AGR4': 0, 'AGR5': 0, 'AGR6': 0, 'AGR7': 0,
-                    'AGR8': 0, 'AGR9': 0, 'AGR10': 0, 'CSN1': 0, 'CSN2': 0, 'CSN3': 0, 'CSN4': 0, 'CSN5': 0, 'CSN6': 0,
-                    'CSN7': 0, 'CSN8': 0, 'CSN9': 0, 'CSN10': 0, 'OPN1': 0, 'OPN2': 0, 'OPN3': 0, 'OPN4': 0, 'OPN5': 0,
-                    'OPN6': 0, 'OPN7': 0, 'OPN8': 0, 'OPN9': 0, 'OPN10': 0}
-
-            data = {key: random.randint(1, 5) for key in data}
-            # Convert the input data to a numpy array
-            input_data = np.array([list(data.values())], dtype=np.float64)
-
-            # Perform clustering prediction
-            predictions = personality_model.predict(input_data)
-
-            # Convert the predictions to a list
-            personality_traits = predictions.tolist()
-
-            # Map the predicted personality traits to their respective names
-            personality_names = ['Extraversion', 'Emotional Stability', 'Agreeableness', 'Conscientiousness', 'Openness']
-            predicted_personality = [personality_names[i] for i in personality_traits]
-
-            # Prepare the response JSON
-            response = {
-                'input': data,
-                'predicted_personality': predicted_personality
-            }
-
-            return jsonify(response)
-
-        except:
-            return jsonify({'error': 'Failed to process the request.'})
-
-    else:
-        return jsonify({'error': 'Invalid content type. Expected application/json.'})
-
 @app.route("/detect_personality", methods=["POST"])
 def detect_personality():
     api_key = request.headers.get('X-API-Key')
@@ -324,7 +285,7 @@ def detect_personality():
 @app.route('/product_search', methods=['GET'])
 def product_search():
     url = 'https://api.arvigo.site/v1/product-recommendation'
-    headers = {'X-API-Key': '4a150010-bac7-46e7-8b8b-594f47b0015c'}
+    headers = {'X-API-Key': os.getenv("CC_API_KEY")}
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
@@ -587,7 +548,7 @@ def product_search():
 @app.route('/product_recommendation', methods=['GET'])
 def product_recommendation():
     url = 'https://api.arvigo.site/v1/product-recommendation'
-    headers = {'X-API-Key': '4a150010-bac7-46e7-8b8b-594f47b0015c'}
+    headers = {'X-API-Key': os.getenv("CC_API_KEY")}
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
