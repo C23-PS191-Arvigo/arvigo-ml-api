@@ -30,7 +30,7 @@ Method: POST
 Body: image="base64stringhere"
 ```
 
-In HTTPie, we can write this as: `http POST "127.0.0.1:5000/is_human" image="base64stringhere" "X-API-KEY: 05d27624-e862-4127-afc8-d382a137ec52"`
+In HTTPie, we can write this as: `http POST "127.0.0.1:5000/is_human" image="base64stringhere" "X-API-KEY: XXX`
 
 It will return a boolean value in String format.
 #### Face Shape Detection
@@ -41,7 +41,7 @@ Method: POST
 Body: image="base64stringhere"
 ```
 
-In HTTPie, we can write this as: `http POST "127.0.0.1:5000/face_shape" image="base64stringhere" "X-API-KEY: 05d27624-e862-4127-afc8-d382a137ec52"`
+In HTTPie, we can write this as: `http POST "127.0.0.1:5000/face_shape" image="base64stringhere" "X-API-KEY: XXX`
 
 It will return:
 
@@ -75,7 +75,7 @@ http POST http://127.0.0.1:5000/detect_personality \
     CSN6:=4 CSN7:=4 CSN8:=4 CSN9:=4 CSN10:=4 \
     OPN1:=4 OPN2:=4 OPN3:=4 OPN4:=4 OPN5:=4 \
     OPN6:=4 OPN7:=4 OPN8:=4 OPN9:=4 OPN10:=4 \
-    "X-API-KEY: 05d27624-e862-4127-afc8-d382a137ec52"
+    "X-API-KEY: XXX"
 ```
 
 It _could_ return:
@@ -98,7 +98,7 @@ Body: JSON
 In Curl, we can write this as: 
 
 ```
-curl -X GET "http://127.0.0.1:5000/product_search?query=Emporio" -H "X-API-KEY: 05d27624-e862-4127-afc8-d382a137ec52"
+curl -X GET "http://127.0.0.1:5000/product_search?query=Emporio" -H "X-API-KEY: XXX"
 ```
 
 It will return:
@@ -239,7 +239,7 @@ Body: None (no params)
 In HTTPie, we can write this as: 
 
 ```
-http GET "127.0.0.1:5000/product_recommendation" query="Emporio" "X-API-KEY: 05d27624-e862-4127-afc8-d382a137ec52"
+http GET "127.0.0.1:5000/product_recommendation" query="Emporio" "X-API-KEY: XXX"
 ```
 
 It will return:
