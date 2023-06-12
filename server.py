@@ -217,13 +217,15 @@ def process_face_shape():
             model = load_model("./models/face-shapes.h5")
             img = load_image_from_base64(processed_image)
             pred = predict_image(model, img)
-            result = classify_face_shape(pred)
+            result_is_human = threshold_human(pred)
+            if result == "False":
+                return jsonify({'result': False})
+            elif result == "True":
+                result_face_shape = classify_face_shape(pred)
+                # Convert the result keys to strings
+                result_face_shape = {str(key): value for key, value in result_face_shape.items()}
 
-            # Convert the result keys to strings
-
-            result = {str(key): value for key, value in result.items()}
-
-            return jsonify(result)
+                return jsonify(result_face_shape)
         else:
             return 'Content-Type not supported!'
     else:
