@@ -27,6 +27,8 @@ nltk.download('stopwords')
 
 app = Flask(__name__)
 API_KEY = os.getenv("ML_API_KEY")
+human_face_model = load_model("./models/human-faces.h5")
+face_shape_model = load_model("./models/face-shapes.h5")
 
 def load_image_from_base64(base64_string, target_size=(100, 100)):
     img_bytes = base64.b64decode(base64_string)
@@ -190,9 +192,8 @@ def process_is_human():
         content_type = request.headers.get('Content-Type')
         if content_type == 'application/json':
             param = request.json["image"]
-            model = load_model("./models/human-faces.h5")
             img = load_image_from_base64(param)
-            pred = predict_image(model, img)
+            pred = predict_image(human_face_model, img)
             result = threshold_human(pred)
 
             if result == "True":
@@ -212,22 +213,26 @@ def process_face_shape():
         content_type = request.headers.get('Content-Type')
         if content_type == 'application/json':
             param = request.json["image"]
-            processed_image = preprocess_image(param)   
-            
-            model = load_model("./models/face-shapes.h5")
-            img = load_image_from_base64(processed_image)
-            pred = predict_image(model, img)
-            result_is_human = threshold_human(pred)
-            if result == "False":
-                return jsonify({'result': False})
-            elif result == "True":
-                result_face_shape = classify_face_shape(pred)
-                # Convert the result keys to strings
-                result_face_shape = {str(key): value for key, value in result_face_shape.items()}
+            img = load_image_from_base64(param)
+            pred = predict_image(human_face_model, img)
+            result = threshold_human(pred)
 
-                return jsonify(result_face_shape)
+            if result == "True":
+                processed_image = preprocess_image(param)                
+                face_shape_img = load_image_from_base64(processed_image)
+                face_shape_pred = predict_image(face_shape_model, face_shape_img)
+                face_shape_result = classify_face_shape(face_shape_pred)
+
+                # Convert the result keys to strings
+
+                face_shape_result = {str(key): value for key, value in face_shape_result.items()}
+                face_shape_result["is_human"] = True
+
+                return jsonify(face_shape_result)
+            elif result == "False":
+                return jsonify({'is_human': False, "shape": None})
         else:
-            return 'Content-Type not supported!'
+            return jsonify({'message': 'Content-Type not supported!'})
     else:
         return jsonify({'message': 'Invalid API key!'})
 
