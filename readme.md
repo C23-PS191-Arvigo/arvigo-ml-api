@@ -366,5 +366,5 @@ It will return:
         "similarity": 0.021739130434782594,
         "tags": "heart, oblong, oval"
     }
-]
+] 
 ```
