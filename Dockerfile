@@ -13,7 +13,7 @@ COPY . /app
 RUN apt-get update && apt-get install -y libgl1-mesa-glx
 
 # Install the required packages
-RUN pip install protobuf flask joblib numpy tensorflow opencv-python mediapipe requests scikit-learn pandas keras nltk nvidia-tensorrt fuzzywuzzy dotenv
+RUN pip install protobuf flask joblib numpy tensorflow opencv-python mediapipe requests scikit-learn pandas keras nltk nvidia-tensorrt fuzzywuzzy dotenv python-dotenv scipy
 
 # Expose the port on which the Flask app will run
 EXPOSE 80
