@@ -1,14 +1,22 @@
 # Arvigo Machine Learning API
+The Arvigo Machine Learning API is a powerful tool that provides several models for various tasks. These models include Human Face Detection, Face Shape Detection, Personality Analysis, Search Engine, and Product Recommendation.
 
 ## Table of Models
 
-* Human Face Detection
-* Face Shape Detection
-* Personality Analysis
-* Search Engine
-* Product Recommendation
+The API provides the following models:
+
+- Human Face Detection: This model is capable of detecting human faces in images.
+- Face Shape Detection: This model can identify and classify different face shapes in images.
+- Personality Analysis: This model analyzes text input and provides insights into the personality traits of the author.
+- Search Engine: This model allows users to perform searches on a specific dataset or collection of documents.
+- Product Recommendation: This model suggests relevant products based on user preferences and historical data.
 
 ## Development
+
+### Requirements
+- Python 3.x
+- Flask
+- Other required dependencies (specified in the requirements.txt file)
 
 ### How to run with live reload
 
@@ -17,6 +25,12 @@ To enable live reload while running the API server, use the following command:
 ```
 flask --app server --debug run
 ```
+This command will start the API server with live reload functionality, allowing you to make changes to the code and see the updates immediately without manually restarting the server.
+
+## Authentication
+
+Access to the API endpoints requires authentication using an API key. You need to include the API key in the X-API-KEY header of each request to authenticate successfully. Make sure to obtain and use a valid API key for accessing the API endpoints.
+
 
 ## Endpoints
 
@@ -307,6 +321,3 @@ Example error response:
 }
 ```
 
-## Authentication
-
-The API endpoints require an API key for authentication. The API key should be included in the `X-API-KEY` header of each request. 
