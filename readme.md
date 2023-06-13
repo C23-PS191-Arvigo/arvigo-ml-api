@@ -2,19 +2,17 @@
 
 ## Table of Models
 
-- Model for detecting human and non-human faces
-- Model for detecting face shapes
-- Model for analyzing personalities
+* Human Face Detection
+* Face Shape Detection
+* Personality Analysis
+* Search Engine
+* Product Recommendation
 
 ## Development
 
-### How to run
-
-```
-flask --app server run
-```
-
 ### How to run with live reload
+
+To enable live reload while running the API server, use the following command:
 
 ```
 flask --app server --debug run
@@ -22,47 +20,59 @@ flask --app server --debug run
 
 ## Endpoints
 
-#### Human Face Detection
+### Human Face Detection
+
+- **URL:** `127.0.0.1:5000/is_human`
+- **Method:** POST
+- **Body:** `image="base64_string_here"`
+
+> **IMPORTANT**: This endpoint is not used (legacy) because its function was combined to the Face Shape detection endpoint.
+
+In HTTPie, you can use the following command:
 
 ```
-URL: 127.0.0.1:5000/is_human
-Method: POST
-Body: image="base64stringhere"
+http POST "127.0.0.1:5000/is_human" image="base64_string_here" "X-API-KEY: XXX"
 ```
 
-In HTTPie, we can write this as: `http POST "127.0.0.1:5000/is_human" image="base64stringhere" "X-API-KEY: XXX`
+It will return a single boolean value wrapped in JSON:
 
-It will return a boolean value in String format.
-#### Face Shape Detection
-
-```
-URL: 127.0.0.1:5000/face_shape
-Method: POST
-Body: image="base64stringhere"
-```
-
-In HTTPie, we can write this as: `http POST "127.0.0.1:5000/face_shape" image="base64stringhere" "X-API-KEY: XXX`
-
-It will return:
-
-```
+```json
 {
-    "probability": 0.48920559883117676,
+    "result": true
+}
+```
+
+### Face Shape Detection
+
+- **URL:** `127.0.0.1:5000/face_shape`
+- **Method:** POST
+- **Body:** `image="base64_string_here"`
+
+In HTTPie, you can use the following command:
+
+```
+http POST "127.0.0.1:5000/face_shape" image="base64_string_here" "X-API-KEY: XXX"
+```
+
+It will return the shape of the detected face along with its probability, for example:
+
+```json
+{
+    "is_human": true,
+    "probability": 0.48920536041259766,
     "shape": "square"
 }
 ```
 
-#### Personality Analysis
+### Personality Analysis
 
-```
-URL: 127.0.0.1:5000/detect_personality
-Method: POST
-Body: JSON
-```
+- **URL:** `127.0.0.1:5000/detect_personality`
+- **Method:** POST
+- **Body:** JSON
 
-In HTTPie, we can write this as: 
+In HTTPie, you can use the following command:
 
-```
+```bash
 http POST http://127.0.0.1:5000/detect_personality \
     Content-Type:application/json \
     EXT1:=4 EXT2:=4 EXT3:=4 EXT4:=4 EXT5:=4 \
@@ -78,293 +88,225 @@ http POST http://127.0.0.1:5000/detect_personality \
     "X-API-KEY: XXX"
 ```
 
-It _could_ return:
+It _could_ return the predicted personality traits, for example:
 
-```
+```json
 {
-    "predicted_personality": [
-        "Extraversion"
-    ]
+    "percentage_of_agreeable": 19.64,
+    "percentage_of_conscientious": 19.64,
+    "percentage_of_extraversion": 17.86,
+    "percentage_of_neurotic": 23.21,
+    "percentage_of_openess": 19.64
 }
 ```
+
 ### Search Engine
 
-```
-URL: 127.0.0.1:5000/product_search
-Method: POST
-Body: JSON
+- **URL:** `127.0.0.1:5000/product_search`
+- **Method:** POST
+- **Body:** JSON
+
+In Curl, you can use the following command:
+
+```bash
+curl -X GET "http://127.0.0.0.1:5000/product_search" -H "Content-Type: application/json" -d '{
+  "query": "laptop",
+  "num_results": 5
+}'
 ```
 
-In Curl, we can write this as: 
+It will return a list of product IDs that match the given query, for example:
 
-```
-curl -X GET "http://127.0.0.1:5000/product_search?query=Emporio" -H "X-API-KEY: XXX"
-```
-
-It will return:
-
-```
+```json
 [
     {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 39,
-        "combined": "Kacamata 8 This is the description of Product 8 Glasses Emporio heart, oval, square Optik Merah Putih, Optik Susi, Optik Sukarno, Optik tik",
-        "description": "This is the description of Product 8",
-        "id": 8,
-        "merchants": "Optik Merah Putih, Optik Susi, Optik Sukarno, Optik tik",
-        "name": "Kacamata 8",
-        "similarity": 0.0475012846865365,
-        "tags": "heart, oval, square"
+        "brand": "oakley",
+        "category": "glasses kacamata",
+        "description": "halo bro",
+        "id": "2",
+        "merchants": "arvigo tech",
+        "name": "kacamata kotak",
+        "similarity": 0.15706168831168826,
+        "tags": "aviator,cat eye,rimless"
     },
     {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 62,
-        "combined": "Kacamata 15 This is the description of Product 15 Glasses Emporio oval, circle, oblong Optik Merah Putih, Optik tik, Optik Susi, Optik Sukarno",
-        "description": "This is the description of Product 15",
-        "id": 15,
-        "merchants": "Optik Merah Putih, Optik tik, Optik Susi, Optik Sukarno",
-        "name": "Kacamata 15",
-        "similarity": 0.04657771188534719,
-        "tags": "oval, circle, oblong"
+        "brand": "ray-ban",
+        "category": "makeup",
+        "description": "coba lagi",
+        "id": "11",
+        "merchants": "",
+        "name": "arvigo project",
+        "similarity": 0.15674603174603174,
+        "tags": "aviator,cat eye"
     },
     {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 67,
-        "combined": "Kacamata 18 This is the description of Product 18 Glasses Emporio heart, square, oblong Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "description": "This is the description of Product 18",
-        "id": 18,
-        "merchants": "Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "name": "Kacamata 18",
-        "similarity": 0.04621465491030709,
-        "tags": "heart, square, oblong"
+        "brand": "bottega veneta",
+        "category": "makeup",
+        "description": "halo bro",
+        "id": "4",
+        "merchants": "arvigo tech,yusuf wibisono store",
+        "name": "mascara",
+        "similarity": 0.1450892857142857,
+        "tags": "foundation"
     },
     {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 18,
-        "combined": "Kacamata 1 This is the description of Product 1 Glasses Emporio square, circle, triangle Optik Sukarno, Optik Susi, Optik tik, Optik Merah Putih",
-        "description": "This is the description of Product 1",
-        "id": 1,
-        "merchants": "Optik Sukarno, Optik Susi, Optik tik, Optik Merah Putih",
-        "name": "Kacamata 1",
-        "similarity": 0.04567307692307695,
-        "tags": "square, circle, triangle"
+        "brand": "bottega veneta",
+        "category": "makeup",
+        "description": "halo bro",
+        "id": "7",
+        "merchants": "",
+        "name": "mascara",
+        "similarity": 0.1294642857142857,
+        "tags": "foundation"
     },
     {
-        "brand": "Oakley",
-        "category": "Glasses",
-        "clicked": 5,
-        "combined": "Kacamata 11 This is the description of Product 11 Glasses Oakley heart, triangle, square Optik Merah Putih, Optik Sukarno, Optik Susi, Optik tik",
-        "description": "This is the description of Product 11",
-        "id": 11,
-        "merchants": "Optik Merah Putih, Optik Sukarno, Optik Susi, Optik tik",
-        "name": "Kacamata 11",
-        "similarity": 0.02430555555555558,
-        "tags": "heart, triangle, square"
+        "brand": "chanel",
+        "category": "makeup",
+        "description": "desk",
+        "id": "8",
+        "merchants": "",
+        "name": "coba brand",
+        "similarity": 0.11249999999999998,
+        "tags": "aviator,cat eye"
     },
     {
-        "brand": "Oakley",
-        "category": "Glasses",
-        "clicked": 6,
-        "combined": "Kacamata 17 This is the description of Product 17 Glasses Oakley oblong, square, triangle Optik Merah Putih, Optik Sukarno, Optik tik, Optik Susi",
-        "description": "This is the description of Product 17",
-        "id": 17,
-        "merchants": "Optik Merah Putih, Optik Sukarno, Optik tik, Optik Susi",
-        "name": "Kacamata 17",
-        "similarity": 0.02413793103448275,
-        "tags": "oblong, square, triangle"
+        "brand": "chanel",
+        "category": "makeup",
+        "description": "desk",
+        "id": "9",
+        "merchants": "",
+        "name": "coba brand",
+        "similarity": 0.11249999999999998,
+        "tags": "aviator,cat eye"
     },
     {
-        "brand": "CHANEL",
-        "category": "Glasses",
-        "clicked": 50,
-        "combined": "Kacamata 3 This is the description of Product 3 Glasses CHANEL heart, square, oval Optik tik, Optik Merah Putih, Optik Sukarno, Optik Susi",
-        "description": "This is the description of Product 3",
-        "id": 3,
-        "merchants": "Optik tik, Optik Merah Putih, Optik Sukarno, Optik Susi",
-        "name": "Kacamata 3",
-        "similarity": 0.021739130434782594,
-        "tags": "heart, square, oval"
+        "brand": "chanel",
+        "category": "makeup",
+        "description": "desk",
+        "id": "10",
+        "merchants": "",
+        "name": "coba brand",
+        "similarity": 0.11249999999999998,
+        "tags": "aviator,cat eye"
     },
     {
-        "brand": "Police",
-        "category": "Glasses",
-        "clicked": 66,
-        "combined": "Kacamata 5 This is the description of Product 5 Glasses Police oval, oblong, heart Optik Merah Putih, Optik Susi, Optik tik, Optik Sukarno",
-        "description": "This is the description of Product 5",
-        "id": 5,
-        "merchants": "Optik Merah Putih, Optik Susi, Optik tik, Optik Sukarno",
-        "name": "Kacamata 5",
-        "similarity": 0.021739130434782594,
-        "tags": "oval, oblong, heart"
-    },
-    {
-        "brand": "Oakley",
-        "category": "Glasses",
-        "clicked": 46,
-        "combined": "Kacamata 6 This is the description of Product 6 Glasses Oakley oblong, heart, oval Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "description": "This is the description of Product 6",
-        "id": 6,
-        "merchants": "Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "name": "Kacamata 6",
-        "similarity": 0.021739130434782594,
-        "tags": "oblong, heart, oval"
-    },
-    {
-        "brand": "CHANEL",
-        "category": "Glasses",
-        "clicked": 41,
-        "combined": "Kacamata 9 This is the description of Product 9 Glasses CHANEL heart, oblong, oval Optik Sukarno, Optik Merah Putih, Optik Susi, Optik tik",
-        "description": "This is the description of Product 9",
-        "id": 9,
-        "merchants": "Optik Sukarno, Optik Merah Putih, Optik Susi, Optik tik",
-        "name": "Kacamata 9",
-        "similarity": 0.021739130434782594,
-        "tags": "heart, oblong, oval"
+        "brand": "wardah",
+        "category": "makeup",
+        "description": "sdfsa",
+        "id": "13",
+        "merchants": "",
+        "name": "coba brand",
+        "similarity": 0.11249999999999998,
+        "tags": "eyeliner"
     }
 ]
 ```
 
 ### Product Recommendation
 
-```
-URL: 127.0.0.1:5000/product_recommendation
-Method: POST
-Body: None (no params)
+- **URL:** `127.0.0.1:5000/recommend_product`
+- **Method:** POST
+- **Body:** JSON
+
+In HTTPie, you can use the following command:
+
+```bash
+http POST http://127.0.0.1:5000/recommend_product \
+    Content-Type:application/json \
+    product_id=12345 "X-API-KEY: XXX"
 ```
 
-In HTTPie, we can write this as: 
+It will return a recommended product based on the given product ID, for example:
 
-```
-http GET "127.0.0.1:5000/product_recommendation" query="Emporio" "X-API-KEY: XXX"
+```json
+{
+    "10": [
+        "8",
+        "9",
+        "11",
+        "13",
+        "7",
+        "4",
+        "2"
+    ],
+    "11": [
+        "8",
+        "9",
+        "10",
+        "7",
+        "13",
+        "4",
+        "2"
+    ],
+    "13": [
+        "8",
+        "9",
+        "10",
+        "7",
+        "11",
+        "4",
+        "2"
+    ],
+    "2": [
+        "8",
+        "9",
+        "10",
+        "11",
+        "4",
+        "7",
+        "13"
+    ],
+    "4": [
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "13",
+        "2"
+    ],
+    "7": [
+        "4",
+        "8",
+        "9",
+        "10",
+        "11",
+        "13",
+        "2"
+    ],
+    "8": [
+        "9",
+        "10",
+        "11",
+        "13",
+        "7",
+        "4",
+        "2"
+    ],
+    "9": [
+        "8",
+        "10",
+        "11",
+        "13",
+        "7",
+        "4",
+        "2"
+    ]
+}
 ```
 
-It will return:
+## Error Handling
 
+If an error occurs, the API will return an error message with an appropriate status code.
+
+Example error response:
+
+```json
+{
+    "message": "Request failed with status code 401",
+}
 ```
-[
-    {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 39,
-        "combined": "Kacamata 8 This is the description of Product 8 Glasses Emporio heart, oval, square Optik Merah Putih, Optik Susi, Optik Sukarno, Optik tik",
-        "description": "This is the description of Product 8",
-        "id": 8,
-        "merchants": "Optik Merah Putih, Optik Susi, Optik Sukarno, Optik tik",
-        "name": "Kacamata 8",
-        "similarity": 0.0475012846865365,
-        "tags": "heart, oval, square"
-    },
-    {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 62,
-        "combined": "Kacamata 15 This is the description of Product 15 Glasses Emporio oval, circle, oblong Optik Merah Putih, Optik tik, Optik Susi, Optik Sukarno",
-        "description": "This is the description of Product 15",
-        "id": 15,
-        "merchants": "Optik Merah Putih, Optik tik, Optik Susi, Optik Sukarno",
-        "name": "Kacamata 15",
-        "similarity": 0.04657771188534719,
-        "tags": "oval, circle, oblong"
-    },
-    {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 67,
-        "combined": "Kacamata 18 This is the description of Product 18 Glasses Emporio heart, square, oblong Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "description": "This is the description of Product 18",
-        "id": 18,
-        "merchants": "Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "name": "Kacamata 18",
-        "similarity": 0.04621465491030709,
-        "tags": "heart, square, oblong"
-    },
-    {
-        "brand": "Emporio",
-        "category": "Glasses",
-        "clicked": 18,
-        "combined": "Kacamata 1 This is the description of Product 1 Glasses Emporio square, circle, triangle Optik Sukarno, Optik Susi, Optik tik, Optik Merah Putih",
-        "description": "This is the description of Product 1",
-        "id": 1,
-        "merchants": "Optik Sukarno, Optik Susi, Optik tik, Optik Merah Putih",
-        "name": "Kacamata 1",
-        "similarity": 0.04567307692307695,
-        "tags": "square, circle, triangle"
-    },
-    {
-        "brand": "Oakley",
-        "category": "Glasses",
-        "clicked": 5,
-        "combined": "Kacamata 11 This is the description of Product 11 Glasses Oakley heart, triangle, square Optik Merah Putih, Optik Sukarno, Optik Susi, Optik tik",
-        "description": "This is the description of Product 11",
-        "id": 11,
-        "merchants": "Optik Merah Putih, Optik Sukarno, Optik Susi, Optik tik",
-        "name": "Kacamata 11",
-        "similarity": 0.02430555555555558,
-        "tags": "heart, triangle, square"
-    },
-    {
-        "brand": "Oakley",
-        "category": "Glasses",
-        "clicked": 6,
-        "combined": "Kacamata 17 This is the description of Product 17 Glasses Oakley oblong, square, triangle Optik Merah Putih, Optik Sukarno, Optik tik, Optik Susi",
-        "description": "This is the description of Product 17",
-        "id": 17,
-        "merchants": "Optik Merah Putih, Optik Sukarno, Optik tik, Optik Susi",
-        "name": "Kacamata 17",
-        "similarity": 0.02413793103448275,
-        "tags": "oblong, square, triangle"
-    },
-    {
-        "brand": "CHANEL",
-        "category": "Glasses",
-        "clicked": 50,
-        "combined": "Kacamata 3 This is the description of Product 3 Glasses CHANEL heart, square, oval Optik tik, Optik Merah Putih, Optik Sukarno, Optik Susi",
-        "description": "This is the description of Product 3",
-        "id": 3,
-        "merchants": "Optik tik, Optik Merah Putih, Optik Sukarno, Optik Susi",
-        "name": "Kacamata 3",
-        "similarity": 0.021739130434782594,
-        "tags": "heart, square, oval"
-    },
-    {
-        "brand": "Police",
-        "category": "Glasses",
-        "clicked": 66,
-        "combined": "Kacamata 5 This is the description of Product 5 Glasses Police oval, oblong, heart Optik Merah Putih, Optik Susi, Optik tik, Optik Sukarno",
-        "description": "This is the description of Product 5",
-        "id": 5,
-        "merchants": "Optik Merah Putih, Optik Susi, Optik tik, Optik Sukarno",
-        "name": "Kacamata 5",
-        "similarity": 0.021739130434782594,
-        "tags": "oval, oblong, heart"
-    },
-    {
-        "brand": "Oakley",
-        "category": "Glasses",
-        "clicked": 46,
-        "combined": "Kacamata 6 This is the description of Product 6 Glasses Oakley oblong, heart, oval Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "description": "This is the description of Product 6",
-        "id": 6,
-        "merchants": "Optik tik, Optik Merah Putih, Optik Susi, Optik Sukarno",
-        "name": "Kacamata 6",
-        "similarity": 0.021739130434782594,
-        "tags": "oblong, heart, oval"
-    },
-    {
-        "brand": "CHANEL",
-        "category": "Glasses",
-        "clicked": 41,
-        "combined": "Kacamata 9 This is the description of Product 9 Glasses CHANEL heart, oblong, oval Optik Sukarno, Optik Merah Putih, Optik Susi, Optik tik",
-        "description": "This is the description of Product 9",
-        "id": 9,
-        "merchants": "Optik Sukarno, Optik Merah Putih, Optik Susi, Optik tik",
-        "name": "Kacamata 9",
-        "similarity": 0.021739130434782594,
-        "tags": "heart, oblong, oval"
-    }
-] 
-```
+
+## Authentication
+
+The API endpoints require an API key for authentication. The API key should be included in the `X-API-KEY` header of each request. 
