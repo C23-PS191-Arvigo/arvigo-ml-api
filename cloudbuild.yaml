@@ -1,4 +1,15 @@
 steps:
+- id: make-env-file
+  name: 'ubuntu'
+  args: ['cp', '.env.example', '.env']
+
+- id: change-variable-env
+  name: 'gcr.io/$PROJECT_ID/envsubst'
+  env:
+    - 'CC_API_KEY=${_CC_API_KEY}'
+    - 'ML_API_KEY=${_ML_API_KEY}'
+  args: ['.env']
+
 - id: Build-docker
   name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'asia.gcr.io/$PROJECT_ID/production-ml/arvigo-backend-ml:$SHORT_SHA', '.']
