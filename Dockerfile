@@ -12,7 +12,7 @@ COPY . /app
 
 # Install system dependencies
 RUN apk add --no-cache libstdc++ musl-dev libffi-dev openssl-dev gcc g++ make libjpeg-turbo-dev
-
+RUN pip install --no-cache-dir --upgrade pip
 # Install the required packages
 RUN pip install --no-cache-dir protobuf flask joblib numpy tensorflow opencv-python mediapipe requests scikit-learn pandas keras nltk nvidia-tensorrt fuzzywuzzy python-dotenv scipy
 
