@@ -1,6 +1,12 @@
-arvigo-ml-big-five-personality/
-arvigo-ml-face-shapes/
-arvigo-ml-human-faces/
-combination.txt
-try.py
-.env
+# IDE Files
+#-------------------------
+/nbproject/
+.idea/*
+
+## Sublime Text cache files
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
